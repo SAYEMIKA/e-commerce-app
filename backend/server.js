@@ -10,39 +10,42 @@ import orderRouter from "./routes/orderRoute.js";
 import dotenv from "dotenv";
 import dns from 'dns';
 
-// Change dns
+// Set DNS Servers untuk mencegah timeout koneksi di beberapa regional Vercel
 dns.setServers(['1.1.1.1', '8.8.8.8']);
 
 dotenv.config();
 
-// App config
 const app = express();
 
 // Middlewares
 app.use(express.json());
 app.use(cors({
-    origin: "*", // Mengizinkan semua origin di Vercel agar tidak terkena CORS
+    origin: "*", 
     credentials: true
 }));
 
-// Koneksi Database & Cloudinary (Dijalankan langsung sekali di tingkat root serverless)
+// Inisialisasi koneksi Database & Cloudinary secara mandiri
+// Menggunakan penanganan error agar jika koneksi lambat, serverless tidak langsung crash 500
+connectDB()
+    .then(() => console.log("Database Connected Successfully"))
+    .catch((err) => console.log("Database Connection Failed:", err.message));
+
 try {
-    await connectDB();
     connectCloudinary();
 } catch (error) {
-    console.log('Database/Cloudinary connection error:', error.message);
+    console.log("Cloudinary Setup Error:", error.message);
 }
 
-// API Endpoints (Dibuat fleksibel tanpa /api tambahan karena sudah di-handle vercel.json)
-app.use('/user', userRouter);
-app.use('/product', productRouter);
-app.use('/cart', cartRoute);
-app.use('/order', orderRouter);
+// API Endpoints fleksibel (Mendukung /api prefix sesuai konfigurasi vercel.json)
+app.use(['/user', '/api/user'], userRouter);
+app.use(['/product', '/api/product'], productRouter);
+app.use(['/cart', '/api/cart'], cartRoute);
+app.use(['/order', '/api/order'], orderRouter);
 
-// Fallback rute jika menembak /api langsung
-app.get('/', (req, res) => {
-    res.send("API ALBANI STORE WORKING");
+// Fallback route untuk verifikasi status API
+app.get(['/', '/api'], (req, res) => {
+    res.status(200).send("API ALBANI STORE WORKING");
 });
 
-// WAJIB: Export app untuk serverless Vercel (Hapus app.listen)
+// WAJIB UNTUK VERCEL: Export default objek app (Menghilangkan app.listen)
 export default app;
