@@ -3,13 +3,10 @@ import cors from 'cors';
 import 'dotenv/config';
 import connectDB from "./config/mongodb.js";
 import connectCloudinary from "./config/cloudinary.js";
-import dotenv from "dotenv";
-import dns from 'dns';
-
-// Set DNS Servers untuk mencegah timeout koneksi di Vercel
-dns.setServers(['1.1.1.1', '8.8.8.8']);
-
-dotenv.config();
+import userRouter from "./routes/userRoute.js";
+import productRouter from "./routes/productRoute.js";
+import cartRouter from "./routes/cartRoute.js";
+import orderRouter from "./routes/orderRoute.js";
 
 const app = express();
 
@@ -20,43 +17,42 @@ app.use(cors({
     credentials: true
 }));
 
-// Inisialisasi koneksi Database & Cloudinary
-connectDB()
-    .then(() => console.log("Database Connected Successfully"))
-    .catch((err) => console.log("Database Connection Failed:", err.message));
+// Koneksi Database - Lazy connection (hanya connect saat ada request)
+let isConnected = false;
+const ensureDBConnection = async () => {
+    if (!isConnected) {
+        await connectDB();
+        isConnected = true;
+    }
+};
 
+// Middleware untuk ensure DB connected sebelum handle request
+app.use(async (req, res, next) => {
+    try {
+        await ensureDBConnection();
+        next();
+    } catch (error) {
+        res.status(500).json({ error: "Database connection failed" });
+    }
+});
+
+// Inisialisasi Cloudinary
 try {
     connectCloudinary();
 } catch (error) {
     console.log("Cloudinary Setup Error:", error.message);
 }
 
-// FUNGSI AMAN: Memuat semua rute dengan mencoba versi huruf kecil & huruf kapital
-const bootstrapRoutes = async () => {
-    // 1. User Route
-    try { app.use(['/user', '/api/user'], (await import("./routes/userroute.js")).default); } 
-    catch { app.use(['/user', '/api/user'], (await import("./routes/userRoute.js")).default); }
+// Routes - Import langsung, bukan dynamic
+app.use('/user', userRouter);
+app.use('/product', productRouter);
+app.use('/cart', cartRouter);
+app.use('/order', orderRouter);
 
-    // 2. Product Route
-    try { app.use(['/product', '/api/product'], (await import("./routes/productroute.js")).default); } 
-    catch { app.use(['/product', '/api/product'], (await import("./routes/productRoute.js")).default); }
-
-    // 3. Cart Route
-    try { app.use(['/cart', '/api/cart'], (await import("./routes/cartRoute.js")).default); } 
-    catch { app.use(['/cart', '/api/cart'], (await import("./routes/cartroute.js")).default); }
-
-    // 4. Order Route
-    try { app.use(['/order', '/api/order'], (await import("./routes/orderroute.js")).default); } 
-    catch { app.use(['/order', '/api/order'], (await import("./routes/orderRoute.js")).default); }
-};
-
-// Jalankan pemuatan rute secara asinkronus
-bootstrapRoutes().catch(err => console.log("Error bootstrapping routes:", err.message));
-
-// Fallback rute untuk verifikasi status API
+// Fallback route
 app.get(['/', '/api'], (req, res) => {
     res.status(200).send("API ALBANI STORE WORKING");
 });
 
-// WAJIB UNTUK VERCEL
+// Export untuk Vercel
 export default app;
