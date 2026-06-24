@@ -3,14 +3,14 @@ import cors from 'cors';
 import 'dotenv/config';
 import connectDB from "./config/mongodb.js";
 import connectCloudinary from "./config/cloudinary.js";
-import userRouter from "./routes/userRoute.js";
-import productRouter from "./routes/productRoute.js";
-import cartRoute from "./routes/cartRoute.js";
-import orderRouter from "./routes/orderRoute.js";
+import userRouter from "./routes/userroute.js";
+import productRouter from "./routes/productroute.js";
+import cartRoute from "./routes/cartroute.js";
+import orderRouter from "./routes/orderroute.js";
 import dotenv from "dotenv";
 import dns from 'dns';
 
-// Set DNS Servers untuk mencegah timeout koneksi di beberapa regional Vercel
+// Set DNS Servers untuk mencegah timeout koneksi di Vercel
 dns.setServers(['1.1.1.1', '8.8.8.8']);
 
 dotenv.config();
@@ -24,8 +24,7 @@ app.use(cors({
     credentials: true
 }));
 
-// Inisialisasi koneksi Database & Cloudinary secara mandiri
-// Menggunakan penanganan error agar jika koneksi lambat, serverless tidak langsung crash 500
+// Inisialisasi koneksi Database & Cloudinary
 connectDB()
     .then(() => console.log("Database Connected Successfully"))
     .catch((err) => console.log("Database Connection Failed:", err.message));
@@ -36,16 +35,16 @@ try {
     console.log("Cloudinary Setup Error:", error.message);
 }
 
-// API Endpoints fleksibel (Mendukung /api prefix sesuai konfigurasi vercel.json)
+// API Endpoints (Mendukung rute langsung atau dengan prefix /api)
 app.use(['/user', '/api/user'], userRouter);
 app.use(['/product', '/api/product'], productRouter);
 app.use(['/cart', '/api/cart'], cartRoute);
 app.use(['/order', '/api/order'], orderRouter);
 
-// Fallback route untuk verifikasi status API
+// Fallback rute untuk verifikasi status API
 app.get(['/', '/api'], (req, res) => {
     res.status(200).send("API ALBANI STORE WORKING");
 });
 
-// WAJIB UNTUK VERCEL: Export default objek app (Menghilangkan app.listen)
+// WAJIB UNTUK VERCEL: Export default objek app
 export default app;
